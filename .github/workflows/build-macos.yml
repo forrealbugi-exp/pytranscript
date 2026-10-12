@@ -1,9 +1,7 @@
 name: Build macOS App
 
 on:
-  # Uruchomienie ręczne z zakładki Actions w GitHub
   workflow_dispatch:
-  # Automatycznie przy każdym tagu zaczynającym się od "v"
   push:
     tags:
       - 'v*'
@@ -11,8 +9,8 @@ on:
 jobs:
   build-macos:
     name: Build .app for macOS
-    runs-on: macos-14        # Apple Silicon (M1)
-    timeout-minutes: 30
+    runs-on: macos-14
+    timeout-minutes: 40
 
     steps:
       - name: Checkout repository
@@ -23,7 +21,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install system dependencies (Homebrew)
+      - name: Install system dependencies
         run: |
           brew install ffmpeg
           brew install python-tk@3.11
@@ -34,25 +32,57 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
+      - name: Show project structure (debug)
+        run: |
+          echo "=== Root files ==="
+          ls -la
+          echo ""
+          echo "=== pytranscript.spec ==="
+          wc -c pytranscript.spec
+          cat pytranscript.spec
+
       - name: Build .app with PyInstaller
         run: |
           pyinstaller pytranscript.spec --clean --noconfirm
+          echo "=== dist/ ==="
+          ls -la dist/
 
-      - name: Sign app (ad-hoc, for local use)
+      - name: Verify .app exists
         run: |
-          codesign --deep --force --sign - dist/pytranscript.app || true
+          if [ ! -d "dist/pytranscript.app" ]; then
+            echo "❌ Brak dist/pytranscript.app"
+            find dist -maxdepth 3 -type d 2>/dev/null || true
+            exit 1
+          fi
+          echo "✅ Znaleziono .app"
+
+      - name: Sign app (ad-hoc)
+        continue-on-error: true
+        run: codesign --deep --force --sign - dist/pytranscript.app || true
 
       - name: Create DMG
+        continue-on-error: true
         run: |
-          hdiutil create -volname "pytranscript" \
-            -srcfolder dist/pytranscript.app \
-            -ov -format UDZO dist/pytranscript.dmg
+          if [ -d "dist/pytranscript.app" ]; then
+            hdiutil create -volname "pytranscript" \
+              -srcfolder dist/pytranscript.app \
+              -ov -format UDZO dist/pytranscript.dmg
+          fi
 
-      - name: Upload artifacts
+      - name: Upload .app
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pytranscript-macos
-          path: |
-            dist/pytranscript.app
-            dist/pytranscript.dmg
+          name: pytranscript-app
+          path: dist/pytranscript.app
           retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload DMG (jeśli istnieje)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytranscript-dmg
+          path: dist/pytranscript.dmg
+          retention-days: 30
+          if-no-files-found: ignore
