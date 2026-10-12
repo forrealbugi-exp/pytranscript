@@ -1,0 +1,9 @@
+numpy
+soundcard
+silero-vad-lite
+language_tool_python
+huggingface_hub
+llama-cpp-python; sys_platform != "darwin"
+mlx-whisper; sys_platform == "darwin"
+faster-whisper; sys_platform != "darwin"
+av==18.0.0; sys_platform != "darwin"
