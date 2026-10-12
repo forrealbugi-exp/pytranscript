@@ -1,0 +1,58 @@
+name: Build macOS App
+
+on:
+  # Uruchomienie ręczne z zakładki Actions w GitHub
+  workflow_dispatch:
+  # Automatycznie przy każdym tagu zaczynającym się od "v"
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-macos:
+    name: Build .app for macOS
+    runs-on: macos-14        # Apple Silicon (M1)
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies (Homebrew)
+        run: |
+          brew install ffmpeg
+          brew install python-tk@3.11
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build .app with PyInstaller
+        run: |
+          pyinstaller pytranscript.spec --clean --noconfirm
+
+      - name: Sign app (ad-hoc, for local use)
+        run: |
+          codesign --deep --force --sign - dist/pytranscript.app || true
+
+      - name: Create DMG
+        run: |
+          hdiutil create -volname "pytranscript" \
+            -srcfolder dist/pytranscript.app \
+            -ov -format UDZO dist/pytranscript.dmg
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytranscript-macos
+          path: |
+            dist/pytranscript.app
+            dist/pytranscript.dmg
+          retention-days: 30
