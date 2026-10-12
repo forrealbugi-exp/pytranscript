@@ -1,9 +1,26 @@
-venv/
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.so
+venv/
+env/
+.venv/
+
+# PyInstaller
 build/
 dist/
 *.spec.bak
-.env
-.DS_Store
+
+# Nagrania
 recordings/
+*.wav
+
+# Systemy
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
